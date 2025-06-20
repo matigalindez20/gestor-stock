@@ -185,39 +185,6 @@
         const populateSelect = (selectEl, options, defaultText) => { if (selectEl) selectEl.innerHTML = `<option value="">${defaultText}</option>` + options.map(opt => `<option value="${opt}">${opt}</option>`).join(''); };
         const toggleSpinner = (btn, isLoading) => { if(btn) btn.classList.toggle('loading', isLoading); };
         
-        async function handleLogin(e) { /* ...código anterior... */ }
-        function switchTab(isDashboard) { /* ...código anterior... */ }
-        function switchDashboardView(isStock) { /* ...código anterior... */ }
-        async function loadStock() { /* ...código anterior... */ }
-        async function loadSales() { /* ...código anterior... */ }
-        function handleDBError(error, container, context) { /* ...código anterior... */ }
-
-        const html5QrCode = new Html5Qrcode("scanner-container");
-        function startScanner() {
-            resetManagementView();
-            s.btnScan.classList.add('hidden');
-            s.scannerContainer.classList.remove('hidden');
-
-            const config = {
-                fps: 10,
-                qrbox: { width: 250, height: 150 },
-                experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-                advanced: [{ focusMode: "continuous" }]
-            };
-
-            html5QrCode.start({ facingMode: "environment" }, config, async (decodedText) => {
-                await html5QrCode.stop();
-                onScanSuccess(decodedText);
-            }, (error) => {}).catch(err => { showFeedback("Error al iniciar cámara.", "error"); });
-        }
-        async function onScanSuccess(imei) { /* ...código anterior... */ }
-        function promptToSell(imei, details) { /* ...código anterior... */ }
-        async function registerSale(imei, productDetails, btn) { /* ...código anterior... */ }
-        async function handleProductFormSubmit(e) { /* ...código anterior... */ }
-        function resetManagementView() { /* ...código anterior... */ }
-        function showFeedback(message, type = 'info') { /* ...código anterior... */ }
-
-        // --- BLOQUE DE CÓDIGO COMPLETO (REPETIDO PARA GARANTIZAR) ---
         async function handleLogin(e) {
             e.preventDefault();
             const btn = e.target.querySelector('button');
@@ -243,6 +210,7 @@
             s.btnShowSales.classList.toggle('active', !isStock);
             if (isStock) loadStock(); else loadSales();
         }
+        
         async function loadStock() {
             s.stockTableContainer.innerHTML = `<p class="dashboard-loader">Cargando stock...</p>`;
             try {
@@ -255,7 +223,9 @@
 
                 query = query.orderBy('modelo');
                 const querySnapshot = await query.get();
+
                 if (querySnapshot.empty) { s.stockTableContainer.innerHTML = `<p class="dashboard-loader">No se encontraron productos con esos filtros.</p>`; return; }
+                
                 let tableHTML = `<table><thead><tr><th>Modelo</th><th>Color</th><th>GB</th><th>Batería</th><th>IMEI</th><th>Detalles</th></tr></thead><tbody>`;
                 querySnapshot.forEach(doc => {
                     const item = doc.data();
@@ -264,6 +234,7 @@
                 s.stockTableContainer.innerHTML = tableHTML + `</tbody></table>`;
             } catch (error) { handleDBError(error, s.stockTableContainer, "stock"); }
         }
+
         async function loadSales() {
             s.salesTableContainer.innerHTML = `<p class="dashboard-loader">Cargando ventas...</p>`;
             try {
@@ -277,6 +248,7 @@
                 }
                 const querySnapshot = await query.limit(100).get();
                 if (querySnapshot.empty) { s.salesTableContainer.innerHTML = `<p class="dashboard-loader">No se encontraron ventas con esos filtros.</p>`; return; }
+                
                 let tableHTML = `<table><thead><tr><th>Fecha</th><th>Producto</th><th>Vendedor</th><th>Precio (USD)</th><th>Pago</th><th>Detalles Pago</th></tr></thead><tbody>`;
                 querySnapshot.forEach(doc => {
                     const venta = doc.data();
@@ -288,11 +260,45 @@
                 s.salesTableContainer.innerHTML = tableHTML + `</tbody></table>`;
             } catch (error) { handleDBError(error, s.salesTableContainer, "ventas"); }
         }
+
         function handleDBError(error, container, context) {
             console.error(`Error cargando ${context}:`, error);
             let msg = `Error al cargar ${context}.`;
             if (error.code === 'failed-precondition') { msg = `Error: Esta consulta requiere un índice. Por favor, crea uno en la consola de Firebase. Revisa la consola (F12) para ver el link.`; }
             container.innerHTML = `<p class="dashboard-loader" style="color:var(--error-bg)">${msg}</p>`;
+        }
+
+        const html5QrCode = new Html5Qrcode("scanner-container");
+        function startScanner() {
+            resetManagementView();
+            s.btnScan.classList.add('hidden');
+            s.scannerContainer.classList.remove('hidden');
+
+            const config = {
+                fps: 25,
+                qrbox: { width: 250, height: 150 },
+                experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+            };
+
+            const cameraConstraints = { 
+                facingMode: "environment",
+                focusMode: "continuous",
+                width: { ideal: 640 },
+                height: { ideal: 480 }
+            };
+
+            html5QrCode.start(cameraConstraints, config, async (decodedText) => {
+                try {
+                    await html5QrCode.stop();
+                    onScanSuccess(decodedText);
+                } catch (err) {
+                    console.error("Error al detener el scanner:", err);
+                    onScanSuccess(decodedText);
+                }
+            }, (error) => {}).catch(err => { 
+                showFeedback("Error al iniciar cámara. Revisa los permisos.", "error"); 
+                console.error("Error al iniciar la cámara:", err);
+            });
         }
         async function onScanSuccess(imei) {
             showFeedback("Buscando IMEI...", "loading");
@@ -301,9 +307,12 @@
                 const imeiDoc = await imeiRef.get();
                 s.feedbackMessage.classList.add('hidden');
                 if (imeiDoc.exists && imeiDoc.data().estado === 'en_stock') {
-                    s.managementView.classList.add('hidden'); promptToSell(imei.trim(), imeiDoc.data());
+                    s.managementView.classList.add('hidden');
+                    promptToSell(imei.trim(), imeiDoc.data());
                 } else {
-                    s.imeiInput.value = imei.trim(); s.productForm.classList.remove('hidden'); s.productForm.querySelector('select').focus();
+                    s.imeiInput.value = imei.trim();
+                    s.productForm.classList.remove('hidden');
+                    s.productForm.querySelector('select').focus();
                 }
             } catch (error) { handleDBError(error, s.feedbackMessage, "búsqueda de IMEI"); }
         }
@@ -332,7 +341,9 @@
                     }
                     t.set(saleRef, saleData);
                 });
-                s.promptContainer.innerHTML = ''; s.btnShowSales.click();
+                s.promptContainer.innerHTML = ''; 
+                s.managementView.classList.remove('hidden');
+                s.btnShowSales.click();
             } catch (error) { console.error("Error al registrar la venta:", error); alert("Error al procesar la venta. Revisa la consola."); } 
             finally { toggleSpinner(btn, false); }
         }
@@ -361,8 +372,10 @@
             finally { toggleSpinner(btn, false); }
         }
         function resetManagementView() {
-             s.promptContainer.innerHTML = ''; s.productForm.reset();
-             s.productForm.classList.add('hidden'); s.btnScan.classList.remove('hidden');
+             s.promptContainer.innerHTML = ''; 
+             s.productForm.reset();
+             s.productForm.classList.add('hidden'); 
+             s.btnScan.classList.remove('hidden');
              s.scannerContainer.classList.add('hidden');
              s.feedbackMessage.classList.add('hidden');
         }
