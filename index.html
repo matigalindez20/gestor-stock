@@ -97,7 +97,7 @@
                  <div class="form-group"><label for="color-form">Color</label><select id="color-form" name="color" required></select></div>
                  <div class="form-group"><label for="almacenamiento-form">Almacenamiento</label><select id="almacenamiento-form" name="almacenamiento" required></select></div>
                  <div class="form-group"><label for="detalles-form">Detalles Estéticos</label><select id="detalles-form" name="detalles" required></select></div>
-                 <button type="submit" class="spinner-btn"><span class="btn-text">Guardar Producto</span><div class="spinner"></div></button>
+                 <button type="submit" id="btn-submit-form" class="spinner-btn"><span class="btn-text">Guardar Producto</span><div class="spinner"></div></button>
             </form>
         </div>
         <div id="prompt-container"></div>
@@ -163,18 +163,14 @@
 
             auth.onAuthStateChanged(user => {
                 if (user) {
-                    s.loginContainer.innerHTML = '';
-                    s.loginContainer.classList.add('hidden');
-                    s.appContainer.classList.remove('hidden');
-                    s.btnShowStock.click();
+                    s.loginContainer.innerHTML = ''; s.loginContainer.classList.add('hidden');
+                    s.appContainer.classList.remove('hidden'); s.btnShowStock.click();
                 } else {
-                    s.loginContainer.classList.remove('hidden');
-                    s.appContainer.classList.add('hidden');
-                    s.loginContainer.innerHTML = `<h1>Iniciar Sesión</h1><form id="login-form"><div id="login-feedback" class="hidden"></div><div class="form-group"><label for="email">Email</label><input type="email" id="email" required></div><div class="form-group"><label for="password">Contraseña</label><input type="password" id="password" required></div><button type="submit" class="spinner-btn"><span class="btn-text">Entrar</span><div class="spinner"></div></button></form>`;
+                    s.loginContainer.classList.remove('hidden'); s.appContainer.classList.add('hidden');
+                    s.loginContainer.innerHTML = `<h1>Iniciar Sesión</h1><form id="login-form"><div id="login-feedback" class="hidden"></div><div class="form-group"><label for="email">Email</label><input type="email" id="email" required></div><div class="form-group"><label for="password">Contraseña</label><input type="password" id="password" required></div><button type="submit" id="btn-login" class="spinner-btn"><span class="btn-text">Entrar</span><div class="spinner"></div></button></form>`;
                     document.getElementById('login-form').addEventListener('submit', handleLogin);
                 }
             });
-
             s.logoutButton.addEventListener('click', () => auth.signOut());
             s.tabDashboard.addEventListener('click', () => switchTab(true));
             s.tabManagement.addEventListener('click', () => switchTab(false));
@@ -186,11 +182,42 @@
             s.productForm.addEventListener('submit', handleProductFormSubmit);
         }
         
-        const populateSelect = (selectEl, options, defaultText) => {
-            if (selectEl) selectEl.innerHTML = `<option value="">${defaultText}</option>` + options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
-        };
+        const populateSelect = (selectEl, options, defaultText) => { if (selectEl) selectEl.innerHTML = `<option value="">${defaultText}</option>` + options.map(opt => `<option value="${opt}">${opt}</option>`).join(''); };
         const toggleSpinner = (btn, isLoading) => { if(btn) btn.classList.toggle('loading', isLoading); };
         
+        async function handleLogin(e) { /* ...código anterior... */ }
+        function switchTab(isDashboard) { /* ...código anterior... */ }
+        function switchDashboardView(isStock) { /* ...código anterior... */ }
+        async function loadStock() { /* ...código anterior... */ }
+        async function loadSales() { /* ...código anterior... */ }
+        function handleDBError(error, container, context) { /* ...código anterior... */ }
+
+        const html5QrCode = new Html5Qrcode("scanner-container");
+        function startScanner() {
+            resetManagementView();
+            s.btnScan.classList.add('hidden');
+            s.scannerContainer.classList.remove('hidden');
+
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 150 },
+                experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+                advanced: [{ focusMode: "continuous" }]
+            };
+
+            html5QrCode.start({ facingMode: "environment" }, config, async (decodedText) => {
+                await html5QrCode.stop();
+                onScanSuccess(decodedText);
+            }, (error) => {}).catch(err => { showFeedback("Error al iniciar cámara.", "error"); });
+        }
+        async function onScanSuccess(imei) { /* ...código anterior... */ }
+        function promptToSell(imei, details) { /* ...código anterior... */ }
+        async function registerSale(imei, productDetails, btn) { /* ...código anterior... */ }
+        async function handleProductFormSubmit(e) { /* ...código anterior... */ }
+        function resetManagementView() { /* ...código anterior... */ }
+        function showFeedback(message, type = 'info') { /* ...código anterior... */ }
+
+        // --- BLOQUE DE CÓDIGO COMPLETO (REPETIDO PARA GARANTIZAR) ---
         async function handleLogin(e) {
             e.preventDefault();
             const btn = e.target.querySelector('button');
@@ -203,7 +230,6 @@
                 feedbackEl.classList.remove('hidden');
             } finally { toggleSpinner(btn, false); }
         }
-
         function switchTab(isDashboard) {
             s.dashboardView.classList.toggle('hidden', !isDashboard);
             s.managementView.classList.toggle('hidden', isDashboard);
@@ -217,7 +243,6 @@
             s.btnShowSales.classList.toggle('active', !isStock);
             if (isStock) loadStock(); else loadSales();
         }
-        
         async function loadStock() {
             s.stockTableContainer.innerHTML = `<p class="dashboard-loader">Cargando stock...</p>`;
             try {
@@ -230,9 +255,7 @@
 
                 query = query.orderBy('modelo');
                 const querySnapshot = await query.get();
-
                 if (querySnapshot.empty) { s.stockTableContainer.innerHTML = `<p class="dashboard-loader">No se encontraron productos con esos filtros.</p>`; return; }
-                
                 let tableHTML = `<table><thead><tr><th>Modelo</th><th>Color</th><th>GB</th><th>Batería</th><th>IMEI</th><th>Detalles</th></tr></thead><tbody>`;
                 querySnapshot.forEach(doc => {
                     const item = doc.data();
@@ -241,7 +264,6 @@
                 s.stockTableContainer.innerHTML = tableHTML + `</tbody></table>`;
             } catch (error) { handleDBError(error, s.stockTableContainer, "stock"); }
         }
-
         async function loadSales() {
             s.salesTableContainer.innerHTML = `<p class="dashboard-loader">Cargando ventas...</p>`;
             try {
@@ -255,7 +277,6 @@
                 }
                 const querySnapshot = await query.limit(100).get();
                 if (querySnapshot.empty) { s.salesTableContainer.innerHTML = `<p class="dashboard-loader">No se encontraron ventas con esos filtros.</p>`; return; }
-                
                 let tableHTML = `<table><thead><tr><th>Fecha</th><th>Producto</th><th>Vendedor</th><th>Precio (USD)</th><th>Pago</th><th>Detalles Pago</th></tr></thead><tbody>`;
                 querySnapshot.forEach(doc => {
                     const venta = doc.data();
@@ -267,23 +288,11 @@
                 s.salesTableContainer.innerHTML = tableHTML + `</tbody></table>`;
             } catch (error) { handleDBError(error, s.salesTableContainer, "ventas"); }
         }
-
         function handleDBError(error, container, context) {
             console.error(`Error cargando ${context}:`, error);
             let msg = `Error al cargar ${context}.`;
             if (error.code === 'failed-precondition') { msg = `Error: Esta consulta requiere un índice. Por favor, crea uno en la consola de Firebase. Revisa la consola (F12) para ver el link.`; }
             container.innerHTML = `<p class="dashboard-loader" style="color:var(--error-bg)">${msg}</p>`;
-        }
-
-        const html5QrCode = new Html5Qrcode("scanner-container");
-        function startScanner() {
-            resetManagementView();
-            s.btnScan.classList.add('hidden');
-            s.scannerContainer.classList.remove('hidden');
-            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 150 } }, async (decodedText) => {
-                await html5QrCode.stop();
-                onScanSuccess(decodedText);
-            }, (error) => {}).catch(err => { showFeedback("Error al iniciar cámara.", "error"); });
         }
         async function onScanSuccess(imei) {
             showFeedback("Buscando IMEI...", "loading");
@@ -292,12 +301,9 @@
                 const imeiDoc = await imeiRef.get();
                 s.feedbackMessage.classList.add('hidden');
                 if (imeiDoc.exists && imeiDoc.data().estado === 'en_stock') {
-                    s.managementView.classList.add('hidden');
-                    promptToSell(imei.trim(), imeiDoc.data());
+                    s.managementView.classList.add('hidden'); promptToSell(imei.trim(), imeiDoc.data());
                 } else {
-                    s.imeiInput.value = imei.trim();
-                    s.productForm.classList.remove('hidden');
-                    s.productForm.querySelector('select').focus();
+                    s.imeiInput.value = imei.trim(); s.productForm.classList.remove('hidden'); s.productForm.querySelector('select').focus();
                 }
             } catch (error) { handleDBError(error, s.feedbackMessage, "búsqueda de IMEI"); }
         }
@@ -332,7 +338,7 @@
         }
         async function handleProductFormSubmit(e) {
             e.preventDefault();
-            const btn = e.target.querySelector('button[type="submit"]');
+            const btn = e.target.querySelector('button');
             toggleSpinner(btn, true);
             const formData = new FormData(e.target);
             const imei = formData.get('imei');
